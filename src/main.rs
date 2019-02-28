@@ -45,7 +45,7 @@ fn main() -> Result<()> {
         if buf[len] != 0x0d {
             len += 1;
         }
-        println!("{} = {:x}", latin1_to_string(&buf[0..len]), hash(&buf[0..len]));
+        println!("{:16x} {}", hash(&buf[0..len]), latin1_to_string(&buf[0..len]));
         buf = vec![];
     }
     Ok(())
