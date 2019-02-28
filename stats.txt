@@ -1,0 +1,7 @@
+104230 lines
+1246706 bytes
+
+11.96 bytes per line
+9.96 bytes per word
+
+16 bytes max word length

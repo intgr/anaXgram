@@ -1,0 +1,7 @@
+[package]
+name = "analgram"
+version = "0.1.0"
+authors = ["Marti Raudsepp <marti@juffo.org>"]
+edition = "2018"
+
+[dependencies]
