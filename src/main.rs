@@ -8,7 +8,8 @@ use std::thread;
 use std::time::Instant;
 
 use memchr::memchr;
-use memchr::memchr_iter;
+use memchr::memchr2;
+use memchr::memchr2_iter;
 use memcmp::Memcmp;
 use memmap::MmapOptions;
 
@@ -84,14 +85,16 @@ fn handle(ndl: &Needle, data: &[u8]) -> Vec<String> {
     let mut startpos = 0;
     let mut ret = Vec::new();
 
-    for chrpos in memchr_iter(b'\n', &*data) {
-        let mut endpos = chrpos;
+    while let Some(offset) = memchr(b'\n', &data[startpos..]) {
+        let chrpos = startpos + offset;
+        let mut endpos = chrpos - 1;
+
         // Example file has \r\n line endings. If we find otherwise, fix it up.
-        if data[endpos - 1] == b'\r' {
-            endpos -= 1;
+        if data[endpos] != b'\r' {
+            endpos += 1;
         }
+
         let line = &data[startpos..endpos];
-        // start position for next loop
         startpos = chrpos + 1;
 
         // OK, process this line
