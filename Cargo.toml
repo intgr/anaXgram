@@ -5,3 +5,4 @@ authors = ["Marti Raudsepp <marti@juffo.org>"]
 edition = "2018"
 
 [dependencies]
+memcmp = "0.0.6"
