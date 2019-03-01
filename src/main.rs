@@ -42,27 +42,41 @@ fn gramify(s: &[u8]) -> [u8; 256] {
     return ret;
 }
 
-fn main() -> Result<()> {
-    let args: Vec<String> = env::args().collect();
-    let now = Instant::now();
-    let mut print_all = true;
-    let mut search_string = "".to_string();
+struct Needle {
+    len: usize,
+    hash: u64,
+    gram: [u8; 256]
+}
 
-    if args.len() > 2 {
-        search_string = args[2].clone();
-        print_all = false;
+impl Needle {
+    fn new(s: &String) -> Needle {
+        let tmp = string_to_latin1(s);
+        let bytes = tmp.as_slice();
+        Needle {
+            len: bytes.len(),
+            hash: hash(bytes),
+            gram: gramify(bytes)
+        }
     }
 
-    let foo = string_to_latin1(&search_string);
-    let search_bytes = foo.as_slice();
-    let search_hash = hash(search_bytes);
-    let search_len = search_bytes.len();
-    let search_gram = gramify(search_bytes);
+    fn test(&self, s: &[u8]) -> bool {
+        if self.len != s.len() {
+            // println!("LENGTH exclude: {}", latin1_to_string(line));
+            return false;
+        }
+        if self.hash != hash(s) {
+            // println!("HASH exclude: {}", latin1_to_string(line));
+            return false;
+        }
+        if !self.gram.memcmp(&gramify(s)) {
+            // println!("GRAM exclude: {}", latin1_to_string(line));
+            return false;
+        }
+        return true;
+    }
+}
 
-    let filename = if args.len() > 1 { args[1].clone() } else { "lemmad.txt".to_string() };
-    let file = File::open(filename)?;
-    let data = unsafe { MmapOptions::new().map(&file)? };
-
+fn handle(ndl: Needle, data: &[u8]) {
     let mut startpos = 0;
 
     for chrpos in memchr_iter(b'\n', &*data) {
@@ -76,26 +90,35 @@ fn main() -> Result<()> {
         startpos = chrpos + 1;
 
         // OK, process this line
-        if print_all {
-            println!("{:16x} {}", hash(line), latin1_to_string(line));
-            continue;
+//        if print_all {
+//            println!("{:16x} {}", hash(line), latin1_to_string(line));
+//        }
+//        else
+        if ndl.test(line) {
+            println!("{}", latin1_to_string(line));
         }
-        if line.len() != search_len {
-            // println!("LENGTH exclude: {}", latin1_to_string(line));
-            continue;
-        }
-        let hash = hash(line);
-        if hash != search_hash {
-            // println!("HASH exclude: {}", latin1_to_string(line));
-            continue;
-        }
-        if !gramify(line).memcmp(&search_gram) {
-            // println!("GRAM exclude: {}", latin1_to_string(line));
-            continue;
-        }
-
-        println!("{}", latin1_to_string(line));
     }
+}
+
+fn main() -> Result<()> {
+    let args: Vec<String> = env::args().collect();
+    let now = Instant::now();
+//    let mut print_all = true;
+    let mut search_string = &"".to_string();
+
+    if args.len() > 2 {
+        search_string = &args[2];
+//        print_all = false;
+    }
+
+    let filename = if args.len() > 1 { args[1].clone() } else { "lemmad.txt".to_string() };
+    let file = File::open(filename)?;
+    let data = unsafe { MmapOptions::new().map(&file)? };
+
+    let ndl = Needle::new(&search_string);
+
+    handle(ndl, &data);
+
     println!("Time: {}", now.elapsed().as_micros());
     Ok(())
 }
