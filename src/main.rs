@@ -28,7 +28,8 @@ fn string_to_latin1(s: &String) -> Vec<u8> {
 fn hash(s: &[u8]) -> u64 {
     let mut res: u64 = 0;
     for chr in s.iter() {
-        res |= (Wrapping(1 as u64) << (*chr as usize - 64)).0;
+        // Okay, this can probably be cleaned up but who cares :)
+        res |= (Wrapping(1 as u64) << (Wrapping(*chr as i32) - Wrapping(64)).0 as usize).0;
     }
 
     return res;
