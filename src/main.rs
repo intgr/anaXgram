@@ -14,12 +14,9 @@ fn latin1_to_string(s: &[u8]) -> String {
     s.iter().map(|&c| c as char).collect()
 }
 fn string_to_latin1(s: &String) -> Vec<u8> {
-//fn string_to_latin1(s: String) -> &'static [u8] {
     s.chars().map(|c| c as u8).collect()
 }
 
-
-#[inline(never)]
 fn hash(s: &[u8]) -> u64 {
     // let mut chr: u8;
     let mut res: u64 = 0;
