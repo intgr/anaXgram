@@ -29,7 +29,7 @@ fn hash(s: &[u8]) -> u64 {
     let mut res: u64 = 0;
     for chr in s.iter() {
         // Okay, this can probably be cleaned up but who cares :)
-        res |= (Wrapping(1 as u64) << (Wrapping(*chr as i32) - Wrapping(64)).0 as usize).0;
+        res |= (Wrapping(1 as u64) << (Wrapping(*chr as i64) - Wrapping(64)).0 as usize).0;
     }
 
     return res;
