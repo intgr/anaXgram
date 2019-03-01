@@ -66,12 +66,11 @@ fn main() -> Result<()> {
     let mut startpos = 0;
 
     for chrpos in memchr_iter(b'\n', &*data) {
-        let mut endpos = chrpos - 1;
+        let mut endpos = chrpos;
         // Example file has \r\n line endings. If we find otherwise, fix it up.
-        if data[endpos] == b'\r' {
+        if data[endpos - 1] == b'\r' {
             endpos -= 1;
         }
-        let len = endpos - startpos;
         /*
         if print_all {
             println!("{:16x} {}", hash(&buf[0..len]), latin1_to_string(&buf[0..len]));
@@ -79,12 +78,12 @@ fn main() -> Result<()> {
             continue
         }
         */
-        if len != search_len {
-            // println!("LENGTH exclude: {}", latin1_to_string(&buf[0..len]));
+        let line = &data[startpos..endpos];
+        if line.len() != search_len {
+            // println!("LENGTH exclude: {}", latin1_to_string(line));
             startpos = chrpos + 1;
             continue;
         }
-        let line = &data[startpos..endpos];
         let hash = hash(line);
         if hash != search_hash {
             // println!("HASH exclude: {}", latin1_to_string(line));
