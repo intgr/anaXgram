@@ -26,7 +26,6 @@ fn string_to_latin1(s: &String) -> Vec<u8> {
 }
 
 fn hash(s: &[u8]) -> u64 {
-    // let mut chr: u8;
     let mut res: u64 = 0;
     for chr in s.iter() {
         res |= (Wrapping(1 as u64) << (*chr as usize - 64)).0;
@@ -35,8 +34,10 @@ fn hash(s: &[u8]) -> u64 {
     return res;
 }
 
-fn gramify(s: &[u8]) -> [u8; 256] {
-    let mut ret : [u8; 256] = [0; 256];
+type Gram = [u8; 256];
+
+fn gramify(s: &[u8]) -> Gram {
+    let mut ret: Gram = [0; 256];
     for chr in s.iter() {
         ret[*chr as usize] += 1;
     }
@@ -46,7 +47,7 @@ fn gramify(s: &[u8]) -> [u8; 256] {
 struct Needle {
     len: usize,
     hash: u64,
-    gram: [u8; 256]
+    gram: Gram
 }
 
 impl Needle {
