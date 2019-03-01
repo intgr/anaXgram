@@ -81,8 +81,9 @@ impl Needle {
     }
 }
 
-fn handle(ndl: &Needle, data: &[u8]) {
+fn handle(ndl: &Needle, data: &[u8]) -> Vec<String> {
     let mut startpos = 0;
+    let mut ret = Vec::new();
 
     for chrpos in memchr_iter(b'\n', &*data) {
         let mut endpos = chrpos;
@@ -100,9 +101,10 @@ fn handle(ndl: &Needle, data: &[u8]) {
 //        }
 //        else
         if ndl.test(line) {
-            println!("{}", latin1_to_string(line));
+            ret.push(latin1_to_string(line));
         }
     }
+    return ret;
 }
 
 fn main() -> Result<()> {
@@ -135,7 +137,7 @@ fn main() -> Result<()> {
                 let thread_data = data.clone();
                 let thread_ndl = ndl.clone();
                 children.push(thread::spawn( move || {
-                    handle(&thread_ndl, &thread_data[startpos..endpos]);
+                    handle(&thread_ndl, &thread_data[startpos..endpos])
                 }));
                 startpos = endpos;
             }
@@ -150,10 +152,11 @@ fn main() -> Result<()> {
         handle(&thread_ndl, &thread_data[startpos..])
     }));
 
+    let mut result = Vec::new();
     for child in children {
-        child.join().unwrap();
+        result.extend(child.join().unwrap());
     }
 
-    println!("Time: {}", now.elapsed().as_micros());
+    println!("{},{}", now.elapsed().as_micros(), result.join(","));
     Ok(())
 }
