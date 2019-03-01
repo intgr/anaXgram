@@ -1,8 +1,10 @@
 use std::fs::File;
-use std::io::{BufRead, BufReader, Result};
+use std::io::Result;
 use std::env;
 use std::time::Instant;
 use memcmp::Memcmp;
+use memchr::memchr_iter;
+use memmap::MmapOptions;
 
 /*
 https://stackoverflow.com/questions/28169745/
@@ -42,7 +44,6 @@ fn gramify(s: &[u8]) -> [u8; 256] {
 
 fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
-    let mut buf = vec![];
     let now = Instant::now();
     // let mut print_all = true;
     let mut search_string = "".to_string();
@@ -60,18 +61,17 @@ fn main() -> Result<()> {
 
     let filename = if args.len() > 1 { args[1].clone() } else { "lemmad.txt".to_string() };
     let file = File::open(filename)?;
-    let mut reader = BufReader::new(file);
+    let data = unsafe { MmapOptions::new().map(&file)? };
 
-    while let Ok(mut len) = reader.read_until(0x0a as u8, &mut buf) {
-        if len < 2 {
-            break;
-        }
-        len -= 2;
+    let mut startpos = 0;
+
+    for chrpos in memchr_iter(b'\n', &*data) {
+        let mut endpos = chrpos - 1;
         // Example file has \r\n line endings. If we find otherwise, fix it up.
-        if buf[len] != 0x0d {
-            len += 1;
+        if data[endpos] == b'\r' {
+            endpos -= 1;
         }
-
+        let len = endpos - startpos;
         /*
         if print_all {
             println!("{:16x} {}", hash(&buf[0..len]), latin1_to_string(&buf[0..len]));
@@ -81,23 +81,24 @@ fn main() -> Result<()> {
         */
         if len != search_len {
             // println!("LENGTH exclude: {}", latin1_to_string(&buf[0..len]));
-            buf = vec![];
-            continue
+            startpos = chrpos + 1;
+            continue;
         }
-        let hash = hash(&buf[0..len]);
+        let line = &data[startpos..endpos];
+        let hash = hash(line);
         if hash != search_hash {
-            // println!("HASH exclude: {}", latin1_to_string(&buf[0..len]));
-            buf = vec![];
+            // println!("HASH exclude: {}", latin1_to_string(line));
+            startpos = chrpos + 1;
             continue
         }
-        if !gramify(&buf[0..len]).memcmp(&search_gram) {
-            // println!("GRAM exclude: {}", latin1_to_string(&buf[0..len]));
-            buf = vec![];
+        if !gramify(line).memcmp(&search_gram) {
+            // println!("GRAM exclude: {}", latin1_to_string(line));
+            startpos = chrpos + 1;
             continue
         }
 
-        println!("{}", latin1_to_string(&buf[0..len]));
-        buf = vec![];
+        println!("{}", latin1_to_string(line));
+        startpos = chrpos + 1;
     }
     println!("Time: {}", now.elapsed().as_micros());
     Ok(())
