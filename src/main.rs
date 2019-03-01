@@ -47,27 +47,24 @@ fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
     let mut buf = vec![];
     let now = Instant::now();
-    let mut print_all = true;
+    // let mut print_all = true;
     let mut search_string = "".to_string();
 
     if args.len() > 2 {
         search_string = args[2].clone();
-        print_all = false;
+        // print_all = false;
     }
 
     let foo = string_to_latin1(&search_string);
     let search_bytes = foo.as_slice();
-    //let search_string = args[2];
     let search_hash = hash(search_bytes);
     let search_len = search_bytes.len();
     let search_gram = gramify(search_bytes);
 
     let filename = if args.len() > 1 { args[1].clone() } else { "lemmad.txt".to_string() };
-    //let file = File::open("lemmad.txt")?;
     let file = File::open(filename)?;
     let mut reader = BufReader::new(file);
 
-    //for len in BufReader::new(file).read_until(0x0a, &mut buf) {
     while let Ok(mut len) = reader.read_until(0x0a as u8, &mut buf) {
         if len < 2 {
             break;
@@ -78,22 +75,31 @@ fn main() -> Result<()> {
             len += 1;
         }
 
-        let hash = hash(&buf[0..len]);
+        /*
         if print_all {
-            println!("{:16x} {}", hash, latin1_to_string(&buf[0..len]));
+            println!("{:16x} {}", hash(&buf[0..len]), latin1_to_string(&buf[0..len]));
+            buf = vec![];
+            continue
         }
-        else if hash == search_hash {
-            if len != search_len {
-                // println!("LENGTH exclude: {}", latin1_to_string(&buf[0..len]));
-            }
-            if !gramify(&buf[0..len]).memcmp(&search_gram) {
-//            if unsafe { memcmp(&gramify(&buf[0..len]), &search_gram, 256) != 0 } {
-                println!("GRAM exclude: {}", latin1_to_string(&buf[0..len]));
-            }
-            else {
-                println!("{}", latin1_to_string(&buf[0..len]));
-            }
+        */
+        if len != search_len {
+            // println!("LENGTH exclude: {}", latin1_to_string(&buf[0..len]));
+            buf = vec![];
+            continue
         }
+        let hash = hash(&buf[0..len]);
+        if hash != search_hash {
+            // println!("HASH exclude: {}", latin1_to_string(&buf[0..len]));
+            buf = vec![];
+            continue
+        }
+        if !gramify(&buf[0..len]).memcmp(&search_gram) {
+            // println!("GRAM exclude: {}", latin1_to_string(&buf[0..len]));
+            buf = vec![];
+            continue
+        }
+
+        println!("{}", latin1_to_string(&buf[0..len]));
         buf = vec![];
     }
     println!("Time: {}", now.elapsed().as_micros());

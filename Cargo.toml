@@ -6,3 +6,4 @@ edition = "2018"
 
 [dependencies]
 memcmp = "0.0.6"
+memchr = "2.2.0"
