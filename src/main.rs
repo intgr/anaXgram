@@ -8,10 +8,9 @@ use std::thread;
 use std::time::Instant;
 
 use memchr::memchr;
-use memchr::memchr2;
-use memchr::memchr2_iter;
 use memcmp::Memcmp;
 use memmap::MmapOptions;
+use num_cpus;
 
 /*
 https://stackoverflow.com/questions/28169745/
@@ -110,7 +109,7 @@ fn handle(ndl: &Needle, data: &[u8]) -> Vec<String> {
 }
 
 fn main() -> Result<()> {
-    const THREADS: usize = 4;
+    let threads = num_cpus::get();
     let args: Vec<String> = env::args().collect();
     let now = Instant::now();
 //    let mut print_all = true;
@@ -124,15 +123,16 @@ fn main() -> Result<()> {
     let filename = if args.len() > 1 { args[1].clone() } else { "lemmad.txt".to_string() };
     let file = File::open(filename)?;
     // Shared data between threads
-    let data = Arc::new(unsafe { MmapOptions::new().map(&file)? });
+    let mapping = unsafe { MmapOptions::new().map(&file)? };
+    let data = Arc::new(mapping);
     let ndl = Arc::new(Needle::new(&search_string));
 
     let mut children = vec![];
 
     let mut startpos = 0;
-    for i in 0..THREADS-1 {
+    for i in 0..threads-1 {
         // Find a linebreak
-        let tmp_pos = max(startpos, (data.len() * (i+1))/THREADS);
+        let tmp_pos = max(startpos, (data.len() * (i+1))/threads);
         match memchr(b'\n', &data[tmp_pos..]) {
             Some(offset) => {
                 let endpos = tmp_pos + offset + 1;
