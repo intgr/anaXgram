@@ -2,6 +2,7 @@ use std::cmp::max;
 use std::env;
 use std::fs::File;
 use std::io::Result;
+use std::num::Wrapping;
 use std::sync::Arc;
 use std::thread;
 use std::time::Instant;
@@ -28,12 +29,7 @@ fn hash(s: &[u8]) -> u64 {
     // let mut chr: u8;
     let mut res: u64 = 0;
     for chr in s.iter() {
-        match chr {
-            64...127 => {
-                res |= (1 as u64) << (*chr as i32 - 64);
-            }
-            _ => ()
-        }
+        res |= (Wrapping(1 as u64) << (*chr as usize - 64)).0;
     }
 
     return res;
@@ -69,6 +65,7 @@ impl Needle {
             // println!("LENGTH exclude: {}", latin1_to_string(line));
             return false;
         }
+        // D'oh, this hash checking only gains 15-20 milliseconds :)
         if self.hash != hash(s) {
             // println!("HASH exclude: {}", latin1_to_string(line));
             return false;
@@ -121,8 +118,8 @@ fn main() -> Result<()> {
 
     let filename = if args.len() > 1 { args[1].clone() } else { "lemmad.txt".to_string() };
     let file = File::open(filename)?;
+    // Shared data between threads
     let data = Arc::new(unsafe { MmapOptions::new().map(&file)? });
-
     let ndl = Arc::new(Needle::new(&search_string));
 
     let mut children = vec![];
