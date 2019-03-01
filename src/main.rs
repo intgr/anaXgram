@@ -1,9 +1,14 @@
+use std::cmp::max;
+use std::env;
 use std::fs::File;
 use std::io::Result;
-use std::env;
+use std::sync::Arc;
+use std::thread;
 use std::time::Instant;
-use memcmp::Memcmp;
+
+use memchr::memchr;
 use memchr::memchr_iter;
+use memcmp::Memcmp;
 use memmap::MmapOptions;
 
 /*
@@ -76,7 +81,7 @@ impl Needle {
     }
 }
 
-fn handle(ndl: Needle, data: &[u8]) {
+fn handle(ndl: &Needle, data: &[u8]) {
     let mut startpos = 0;
 
     for chrpos in memchr_iter(b'\n', &*data) {
@@ -101,6 +106,7 @@ fn handle(ndl: Needle, data: &[u8]) {
 }
 
 fn main() -> Result<()> {
+    const THREADS: usize = 4;
     let args: Vec<String> = env::args().collect();
     let now = Instant::now();
 //    let mut print_all = true;
@@ -113,11 +119,40 @@ fn main() -> Result<()> {
 
     let filename = if args.len() > 1 { args[1].clone() } else { "lemmad.txt".to_string() };
     let file = File::open(filename)?;
-    let data = unsafe { MmapOptions::new().map(&file)? };
+    let data = Arc::new(unsafe { MmapOptions::new().map(&file)? });
 
-    let ndl = Needle::new(&search_string);
+    let ndl = Arc::new(Needle::new(&search_string));
 
-    handle(ndl, &data);
+    let mut children = vec![];
+
+    let mut startpos = 0;
+    for i in 0..THREADS-1 {
+        // Find a linebreak
+        let tmp_pos = max(startpos, (data.len() * (i+1))/THREADS);
+        match memchr(b'\n', &data[tmp_pos..]) {
+            Some(offset) => {
+                let endpos = tmp_pos + offset + 1;
+                let thread_data = data.clone();
+                let thread_ndl = ndl.clone();
+                children.push(thread::spawn( move || {
+                    handle(&thread_ndl, &thread_data[startpos..endpos]);
+                }));
+                startpos = endpos;
+            }
+            None => {},     // OK, file may not be long enough
+        }
+    }
+    // Last thread gets everything else
+    let thread_ndl = ndl.clone();
+    let thread_data = data.clone();
+
+    children.push(thread::spawn(move || {
+        handle(&thread_ndl, &thread_data[startpos..])
+    }));
+
+    for child in children {
+        child.join().unwrap();
+    }
 
     println!("Time: {}", now.elapsed().as_micros());
     Ok(())
