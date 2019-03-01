@@ -45,12 +45,12 @@ fn gramify(s: &[u8]) -> [u8; 256] {
 fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
     let now = Instant::now();
-    // let mut print_all = true;
+    let mut print_all = true;
     let mut search_string = "".to_string();
 
     if args.len() > 2 {
         search_string = args[2].clone();
-        // print_all = false;
+        print_all = false;
     }
 
     let foo = string_to_latin1(&search_string);
@@ -71,33 +71,30 @@ fn main() -> Result<()> {
         if data[endpos - 1] == b'\r' {
             endpos -= 1;
         }
-        /*
-        if print_all {
-            println!("{:16x} {}", hash(&buf[0..len]), latin1_to_string(&buf[0..len]));
-            buf = vec![];
-            continue
-        }
-        */
         let line = &data[startpos..endpos];
+        // start position for next loop
+        startpos = chrpos + 1;
+
+        // OK, process this line
+        if print_all {
+            println!("{:16x} {}", hash(line), latin1_to_string(line));
+            continue;
+        }
         if line.len() != search_len {
             // println!("LENGTH exclude: {}", latin1_to_string(line));
-            startpos = chrpos + 1;
             continue;
         }
         let hash = hash(line);
         if hash != search_hash {
             // println!("HASH exclude: {}", latin1_to_string(line));
-            startpos = chrpos + 1;
-            continue
+            continue;
         }
         if !gramify(line).memcmp(&search_gram) {
             // println!("GRAM exclude: {}", latin1_to_string(line));
-            startpos = chrpos + 1;
-            continue
+            continue;
         }
 
         println!("{}", latin1_to_string(line));
-        startpos = chrpos + 1;
     }
     println!("Time: {}", now.elapsed().as_micros());
     Ok(())
