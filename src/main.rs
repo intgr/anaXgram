@@ -110,9 +110,10 @@ fn handle(ndl: &Needle, data: &[u8]) -> Vec<String> {
 }
 
 fn main() -> Result<()> {
+    // Time tracking must be the first executed line in code
+    let start_time = Instant::now();
     let threads = num_cpus::get();
     let args: Vec<String> = env::args().collect();
-    let now = Instant::now();
 //    let mut print_all = true;
     let mut search_string = &"".to_string();
 
@@ -160,6 +161,7 @@ fn main() -> Result<()> {
         result.extend(child.join().unwrap());
     }
 
-    println!("{},{}", now.elapsed().as_micros(), result.join(","));
+    // The stopper must stop just before writing the results to console.
+    println!("{},{}", start_time.elapsed().as_micros(), result.join(","));
     exit(0);
 }
