@@ -3,6 +3,7 @@ use std::env;
 use std::fs::File;
 use std::io::Result;
 use std::num::Wrapping;
+use std::process::exit;
 use std::sync::Arc;
 use std::thread;
 use std::time::Instant;
@@ -160,5 +161,5 @@ fn main() -> Result<()> {
     }
 
     println!("{},{}", now.elapsed().as_micros(), result.join(","));
-    Ok(())
+    exit(0);
 }
