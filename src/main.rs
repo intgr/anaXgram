@@ -126,7 +126,7 @@ fn child_thread(ndl: &Needle, data: &[u8]) -> Vec<String> {
     return ret;
 }
 
-fn main() {
+fn main() -> Result<()> {
     // Time tracking must be the first executed line in code
     let start_time = Instant::now();
     let threads = num_cpus::get();
