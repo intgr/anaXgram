@@ -1,3 +1,7 @@
+use memchr::memchr;
+use memcmp::Memcmp;
+use memmap::MmapOptions;
+use num_cpus;
 use std::cmp::max;
 use std::env;
 use std::fs::File;
@@ -8,17 +12,14 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Instant;
 
-use memchr::memchr;
-use memcmp::Memcmp;
-use memmap::MmapOptions;
-use num_cpus;
-
 /*
-https://stackoverflow.com/questions/28169745/
-
-Strings in Rust are unicode (UTF-8), and unicode codepoints are a superset of iso-8859-1
-characters. This specific conversion is actually trivial.
-*/
+ * All internal processing works on u8 (unsigned 8-bit bytes) in the LATIN-1 encoding.
+ * These functions are only used for console/arguments I/O.
+ *
+ * https://stackoverflow.com/questions/28169745/
+ * Strings in Rust are unicode (UTF-8), and unicode codepoints are a superset of iso-8859-1
+ * characters. This specific conversion is actually trivial.
+ */
 fn latin1_to_string(s: &[u8]) -> String {
     s.iter().map(|&c| c as char).collect()
 }
@@ -26,6 +27,10 @@ fn string_to_latin1(s: &String) -> Vec<u8> {
     s.chars().map(|c| c as u8).collect()
 }
 
+/*
+ * Fast, lossy "hash" -- to exclude words quicker than comparing full anagrams.
+ * Returns 64-bit integer bitset of which letters were found.
+ */
 fn hash(s: &[u8]) -> u64 {
     let mut res: u64 = 0;
     for chr in s.iter() {
@@ -36,6 +41,9 @@ fn hash(s: &[u8]) -> u64 {
     return res;
 }
 
+/*
+ * Slow and precise way to compare two anagrams: 256-byte array of counters.
+ */
 type Gram = [u8; 256];
 
 fn gramify(s: &[u8]) -> Gram {
@@ -63,16 +71,28 @@ impl Needle {
         }
     }
 
+    /* THIS IS THE CORE OF THE COMPARISON */
     fn test(&self, s: &[u8]) -> bool {
+        /*
+         * 1. A large percentage of words can be excluded simply based on their length. We only
+         *    need to find the newline character, no further processing necessary!
+         */
         if self.len != s.len() {
             // println!("LENGTH exclude: {}", latin1_to_string(line));
             return false;
         }
-        // D'oh, this hash checking only gains 15-20 milliseconds :)
+        /*
+         * 2. Compare the lossy hash quickly. If this doesn't match, we can exclude without more
+         *    expensive processing.
+         *    D'oh, this hash checking only gains 15-20 milliseconds :)
+         */
         if self.hash != hash(s) {
             // println!("HASH exclude: {}", latin1_to_string(line));
             return false;
         }
+        /*
+         * 3. OK, this word passed two shortcut tests above, do full anagram comparison.
+         */
         if !self.gram.memcmp(&gramify(s)) {
             // println!("GRAM exclude: {}", latin1_to_string(line));
             return false;
@@ -81,7 +101,8 @@ impl Needle {
     }
 }
 
-fn handle(ndl: &Needle, data: &[u8]) -> Vec<String> {
+/* Per-thread work */
+fn child_thread(ndl: &Needle, data: &[u8]) -> Vec<String> {
     let mut startpos = 0;
     let mut ret = Vec::new();
 
@@ -98,10 +119,6 @@ fn handle(ndl: &Needle, data: &[u8]) -> Vec<String> {
         startpos = chrpos + 1;
 
         // OK, process this line
-//        if print_all {
-//            println!("{:16x} {}", hash(line), latin1_to_string(line));
-//        }
-//        else
         if ndl.test(line) {
             ret.push(latin1_to_string(line));
         }
@@ -109,17 +126,15 @@ fn handle(ndl: &Needle, data: &[u8]) -> Vec<String> {
     return ret;
 }
 
-fn main() -> Result<()> {
+fn main() {
     // Time tracking must be the first executed line in code
     let start_time = Instant::now();
     let threads = num_cpus::get();
     let args: Vec<String> = env::args().collect();
-//    let mut print_all = true;
     let mut search_string = &"".to_string();
 
     if args.len() > 2 {
         search_string = &args[2];
-//        print_all = false;
     }
 
     let filename = if args.len() > 1 { args[1].clone() } else { "lemmad.txt".to_string() };
@@ -133,7 +148,7 @@ fn main() -> Result<()> {
 
     let mut startpos = 0;
     for i in 0..threads-1 {
-        // Find a linebreak
+        // Find a linebreak for each thread
         let tmp_pos = max(startpos, (data.len() * (i+1))/threads);
         match memchr(b'\n', &data[tmp_pos..]) {
             Some(offset) => {
@@ -141,7 +156,7 @@ fn main() -> Result<()> {
                 let thread_data = data.clone();
                 let thread_ndl = ndl.clone();
                 children.push(thread::spawn( move || {
-                    handle(&thread_ndl, &thread_data[startpos..endpos])
+                    child_thread(&thread_ndl, &thread_data[startpos..endpos])
                 }));
                 startpos = endpos;
             }
@@ -153,7 +168,7 @@ fn main() -> Result<()> {
     let thread_data = data.clone();
 
     children.push(thread::spawn(move || {
-        handle(&thread_ndl, &thread_data[startpos..])
+        child_thread(&thread_ndl, &thread_data[startpos..])
     }));
 
     let mut result = Vec::new();
