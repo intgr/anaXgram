@@ -15,7 +15,7 @@ The code is quite ugly but who cares, it only needs to be fast. :)
 4. Run the command:
 	```
 	./target/release/analgram lemmad.txt era
-	999,aer,are,era,rae,rea
+	514,aer,are,era,rae,rea
 	```
 
 \o/

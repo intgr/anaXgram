@@ -84,7 +84,7 @@ impl Needle {
         /*
          * 2. Compare the lossy hash quickly. If this doesn't match, we can exclude without more
          *    expensive processing.
-         *    D'oh, this hash checking only gains 15-20 milliseconds :)
+         *    D'oh, this hash checking only gains 15-20 microseconds :)
          */
         if self.hash != hash(s) {
             // println!("HASH exclude: {}", latin1_to_string(line));
